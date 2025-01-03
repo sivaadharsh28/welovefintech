@@ -9,8 +9,21 @@ const SEED = process.env.SEED;
 //run when user requests new flight insurance
 const newFlightInsurance = async (req, res) => {
     let body = req.body;
-    let user = body["user"];
-    let flight = body["flight"];
+    let user = body["user"]; //user xrpl account and other details
+    let flight = body["flight"]; //flight data
+
+    /* 
+    Example flight data
+
+    flight = {
+        code = 'SQ267',
+        departure = '2019-12-12T04:20:00+00:00'
+        arrival = '2019-12-12T04:20:00+00:00'
+        ...
+        ...
+    }
+    
+    */
 
     //some function to validate user and flight here
 
@@ -31,10 +44,33 @@ const newFlightInsurance = async (req, res) => {
         console.log("Wallet Address: ", wallet.address);
         console.log("Seed: ", SEED);
 
-        // Set the escrow finish time ---------------------------------------------
-        let finishAfter = new Date((new Date().getTime() / 1000) + 120); // 2 minutes from now
-        finishAfter = new Date(finishAfter * 1000);
-        console.log("This escrow will finish after: ", finishAfter);
+        // Set the escrow cancel time ---------------------------------------------
+        let cancelAfter = new Date(flight['arrival']); // Cancel 1 day after arrival
+        cancelAfter.setDate(cancelAfter.getDate() + 1);
+        console.log("This escrow will cancel after: ", cancelAfter);
+
+        const escrowCreateTransaction = {
+            "TransactionType": "EscrowCreate",
+            "Account": wallet.address,
+            "Destination": userWallet.address,
+            "Amount": "6000000", //drops XRP
+            "DestinationTag": 2023,
+            "Condition": conditionHex,
+            "Fee": "12",
+            "CancelAfter": xrpl.isoTimeToRippleTime(cancelAfter.toISOString()),
+        };
+      
+          xrpl.validate(escrowCreateTransaction);
+      
+          // Sign and submit the transaction ----------------------------------------
+          console.log('Signing and submitting the transaction:',
+                      JSON.stringify(escrowCreateTransaction, null,  "\t"), "\n"
+          );
+          const response  = await client.submitAndWait(escrowCreateTransaction, { wallet });
+          console.log(`Sequence number: ${response.result.tx_json.Sequence}`);
+          console.log(`Finished submitting! ${JSON.stringify(response.result, null, "\t")}`);
+      
+          await client.disconnect();
 
     } catch (error) {
         console.log(error);
