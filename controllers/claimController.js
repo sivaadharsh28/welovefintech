@@ -1,8 +1,6 @@
 const xrpl = require("xrpl");
 const cc = require('five-bells-condition');
 const crypto = require('crypto');
-const dotenv = require("dotenv");
-dotenv.config();
 
 const SEED = process.env.SEED;
 
