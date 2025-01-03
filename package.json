@@ -9,6 +9,7 @@
   "author": "Ignatius Oey",
   "license": "ISC",
   "dependencies": {
+    "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "five-bells-condition": "^5.0.1",
     "xrpl": "^4.1.0"
