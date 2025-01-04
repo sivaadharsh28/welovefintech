@@ -57,7 +57,7 @@ const newFlightInsurance = async (req, res) => {
             "TransactionType": "EscrowCreate",
             "Account": wallet.address,
             "Destination": userWallet.address,
-            "Amount": "6000000", //drops XRP
+            "Amount": "6000000", //drops XRP, equals 6XRP
             "DestinationTag": 2023,
             "Condition": conditionHex,
             "Fee": "12",
