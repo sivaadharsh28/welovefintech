@@ -1,5 +1,7 @@
 const dotenv = require("dotenv");
 dotenv.config();
+
+const mongoose = require("mongoose");
 const express = require("express");
 const app = express();
 const PORT = 300;
@@ -20,6 +22,10 @@ app.use(express.json({strict:false}));
 app.use("/api/claims", requestRoutes);
 app.use("/api/test", testRoutes);
 
-app.listen(PORT, () => {
-    console.log(`Server listening on port ${PORT}}`)
-})
+const MONGO_URI = process.env.MONGO_URI;
+mongoose.connect(MONGO_URI).then(() => {
+    app.listen(PORT, () => {
+        console.log(`Server listening on port ${PORT}}`)
+    });
+}).catch(error => console.log(error));
+
