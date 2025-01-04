@@ -9,7 +9,7 @@ const requestRoutes = require("./routes/request");
 const testRoutes = require("./routes/test");
 
 //TODO
-//1. Create Oracle => Watch star alliance api if possible
+//1. Create Oracle => Watch flight data api if possible
 //2. Create escrow 
 //3. Link Oracle and escrow via fulfilment value
 
