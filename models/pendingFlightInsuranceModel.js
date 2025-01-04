@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
-const pendingClaimSchema = new Schema({
+const pendingFlightInsurance = new Schema({
     flightCode: {
         type: String,
         required: true,
@@ -28,4 +28,4 @@ const pendingClaimSchema = new Schema({
     }
 })
 
-module.exports = mongoose.model('PendingClaim', pendingClaimSchema);
+module.exports = mongoose.model('PendingFlightInsurance', pendingFlightInsurance);

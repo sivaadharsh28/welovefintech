@@ -34,8 +34,6 @@ const newFlightInsurance = async (req, res) => {
         const fulfillment = new cc.PreimageSha256();
         fulfillment.setPreimage(preimageData);
         const conditionHex = fulfillment.getConditionBinary().toString('hex').toUpperCase();
-        console.log('Condition:', conditionHex);
-        console.log('Fulfillment:', fulfillment.serializeBinary().toString('hex').toUpperCase());
 
         // Connect ----------------------------------------------------------------
         const client = new xrpl.Client('wss://s.altnet.rippletest.net:51233');
@@ -43,15 +41,11 @@ const newFlightInsurance = async (req, res) => {
 
         // Prepare wallet to sign the transaction ---------------------------------
         const wallet = await xrpl.Wallet.fromSeed(SEED);
-        console.log("Wallet Address: ", wallet.address);
-        console.log("Seed: ", SEED);
 
         // Set the escrow cancel time ---------------------------------------------
         let cancelAfter = new Date(flight['arrival']); // Cancel 1 day after arrival
         cancelAfter.setDate(cancelAfter.getDate() + 1);
-        console.log("This escrow will cancel after: ", cancelAfter);
-
-        let finishAfter = new Date(flight["arrival"]);
+        let finishAfter = new Date(flight["arrival"]); // Only finish after scheduled arrival
 
         const escrowCreateTransaction = {
             "TransactionType": "EscrowCreate",
@@ -65,20 +59,27 @@ const newFlightInsurance = async (req, res) => {
             "FinishAfter": xrpl.isoTimeToRippleTime(finishAfter.toISOString())
         };
       
-          xrpl.validate(escrowCreateTransaction);
+        xrpl.validate(escrowCreateTransaction);
       
-          // Sign and submit the transaction ----------------------------------------
-          console.log('Signing and submitting the transaction:',
-                      JSON.stringify(escrowCreateTransaction, null,  "\t"), "\n"
-          );
-          const response  = await client.submitAndWait(escrowCreateTransaction, { wallet });
-          console.log(`Sequence number: ${response.result.tx_json.Sequence}`);
-          console.log(`Finished submitting! ${JSON.stringify(response.result, null, "\t")}`);
+        // Sign and submit the transaction ----------------------------------------
+        const response  = await client.submitAndWait(escrowCreateTransaction, { wallet });
+        const offerSequence = response.result.tx_json.OfferSequence;
       
-          await client.disconnect();
+        await client.disconnect();
 
-          //TODO validate succesful escrow creation. Return response object
-          return response
+        //Save claim to mongo
+        const {savePendingFlightInsurance} = require("../misc/mongoose");
+        const claimJson = {
+            "flightCode": flight["code"],
+            "departure": flight["departure"],
+            "arrival": flight["arrival"],
+            "offerSequence": offerSequence,
+            "condition": conditionHex,
+            "fulfillment": fulfillment
+        }
+        await savePendingFlightInsurance(claimJson);
+
+        return response
 
     } catch (error) {
         console.log(error);
