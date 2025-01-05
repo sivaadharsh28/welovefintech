@@ -1,10 +1,21 @@
-const mongoose = require("mongoose");
 const PendingFlightInsurance = require("../models/pendingFlightInsuranceModel");
 
-const savePendingFlightInsurance = async (claimJson) => {
-    //saves data provided into the 'pendingclaims' collection in mongo
-    const claim = new PendingFlightInsurance(claimJson);
-    await claim.save();
+//Saves data from fieldsJson as mongo document
+const savePendingFlightInsurance = async (fieldsJson) => {
+    const flightInsurance = new PendingFlightInsurance(fieldsJson);
+    await flightInsurance.save();
 }
 
-module.exports = { savePendingClaim };
+const getFlightsByArrival = async (arrivalDate) => {
+    //scheduled arrival date: YYYY-MM-DD
+    const results = await PendingFlightInsurance.find({arrival:arrivalDate}).exec();
+    return results;
+}
+
+
+//Deletes mongo document by conditionHex
+const deleteFlightInsurance = async (conditionHex) => {
+    await PendingFlightInsurance.deleteOne({condition: conditionHex});
+}
+
+module.exports = { savePendingFlightInsurance, getFlightsByArrival, deleteFlightInsurance };

@@ -13,6 +13,7 @@
     "express": "^4.21.2",
     "five-bells-condition": "^5.0.1",
     "mongoose": "^8.9.3",
+    "node-schedule": "^2.1.1",
     "xrpl": "^4.1.0"
   }
 }

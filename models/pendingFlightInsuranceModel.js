@@ -7,11 +7,11 @@ const pendingFlightInsurance = new Schema({
         required: true,
     },
     departure: {
-        type: String,
+        type: Date,
         required: true,
     },
     arrival: {
-        type: String,
+        type: Date,
         required: true,
     },
     offerSequence: {
