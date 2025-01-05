@@ -1,9 +1,9 @@
 const PendingFlightInsurance = require("../models/pendingFlightInsuranceModel");
 
-const savePendingFlightInsurance = async (claimJson) => {
+const savePendingFlightInsurance = async (fieldsJson) => {
     //saves data provided into the 'pendingclaims' collection in mongo
-    const claim = new PendingFlightInsurance(claimJson);
-    await claim.save();
+    const flightInsurance = new PendingFlightInsurance(fieldsJson);
+    await flightInsurance.save();
 }
 
 const getFlightsByArrival = async (arrivalDate) => {
