@@ -1,7 +1,7 @@
 const PendingFlightInsurance = require("../models/pendingFlightInsuranceModel");
 
+//Saves data from fieldsJson as mongo document
 const savePendingFlightInsurance = async (fieldsJson) => {
-    //saves data provided into the 'pendingclaims' collection in mongo
     const flightInsurance = new PendingFlightInsurance(fieldsJson);
     await flightInsurance.save();
 }
@@ -12,4 +12,10 @@ const getFlightsByArrival = async (arrivalDate) => {
     return results;
 }
 
-module.exports = { savePendingFlightInsurance, getFlightsByArrival };
+
+//Deletes mongo document by conditionHex
+const deleteFlightInsurance = async (conditionHex) => {
+    await PendingFlightInsurance.deleteOne({condition: conditionHex});
+}
+
+module.exports = { savePendingFlightInsurance, getFlightsByArrival, deleteFlightInsurance };
