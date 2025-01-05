@@ -7,7 +7,7 @@ const savePendingFlightInsurance = async (claimJson) => {
 }
 
 const getFlightsByArrival = async (arrivalDate) => {
-    //scheduled arrival date: ISO date string
+    //scheduled arrival date: YYYY-MM-DD
     const results = await PendingFlightInsurance.find({arrival:arrivalDate}).exec();
     return results;
 }
