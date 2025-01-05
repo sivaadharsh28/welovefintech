@@ -28,8 +28,6 @@ const newFlightInsurance = async (req, res) => {
     
     */
 
-    //some function to validate user and flight here
-
     try {
         const preimageData = crypto.randomBytes(32);
         const fulfillment = new cc.PreimageSha256();
