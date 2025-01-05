@@ -7,7 +7,7 @@ const app = express();
 const PORT = 300;
 
 //import routes
-const requestRoutes = require("./routes/request");
+const flightInsuranceRoutes = require("./routes/flightInsurance");
 const testRoutes = require("./routes/test");
 
 //TODO
@@ -19,7 +19,7 @@ const testRoutes = require("./routes/test");
 app.use(express.json({strict:false}));
 
 //routes
-app.use("/api/claims", requestRoutes);
+app.use("/api/flightInsurance", flightInsuranceRoutes);
 app.use("/api/test", testRoutes);
 
 const MONGO_URI = process.env.MONGO_URI;
