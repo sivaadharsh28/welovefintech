@@ -25,7 +25,7 @@ app.use("/api/test", testRoutes);
 const MONGO_URI = process.env.MONGO_URI;
 mongoose.connect(MONGO_URI, {dbName: "RippleShield"}).then(() => {
     app.listen(PORT, () => {
-        console.log(`Server listening on port ${PORT}}`)
+        console.log(`Server listening on port ${PORT}`)
     });
 }).catch(error => console.log(error));
 
