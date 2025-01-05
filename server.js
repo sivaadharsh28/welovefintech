@@ -4,6 +4,7 @@ dotenv.config();
 const mongoose = require("mongoose");
 const schedule = require("node-schedule");
 const express = require("express");
+const initCache = require("./misc/initCache");
 const app = express();
 const PORT = 300;
 const MONGO_URI = process.env.MONGO_URI;
@@ -26,13 +27,13 @@ app.use("/api/test", testRoutes);
 
 // run every 2 hours, poll mongo for changes, update local cache, 
 // search local cache for flights that are due to land, make payouts accordingly
-const initCache = require("./misc/initCache");
-const cache = initCache();
-const job = schedule.scheduleJob("0 */2 * * *", );
+let cache;
+
+//const job = schedule.scheduleJob("0 */2 * * *", () => {});
 
 mongoose.connect(MONGO_URI, {dbName: "RippleShield"}).then(() => {
     app.listen(PORT, () => {
+        cache = initCache();
         console.log(`Server listening on port ${PORT}`)
     });
 }).catch(error => console.log(error));
-
