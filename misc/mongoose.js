@@ -1,4 +1,3 @@
-const mongoose = require("mongoose");
 const PendingFlightInsurance = require("../models/pendingFlightInsuranceModel");
 
 const savePendingFlightInsurance = async (claimJson) => {
@@ -7,4 +6,10 @@ const savePendingFlightInsurance = async (claimJson) => {
     await claim.save();
 }
 
-module.exports = { savePendingClaim };
+const getFlightsByArrival = async (arrivalDate) => {
+    //scheduled arrival date: ISO date string
+    const results = await PendingFlightInsurance.find({arrival:arrivalDate}).exec();
+    return results;
+}
+
+module.exports = { savePendingFlightInsurance, getFlightsByArrival };
