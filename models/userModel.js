@@ -16,4 +16,4 @@ const user = new Schema({
     }
 })
 
-module.exports = mongoose.model('PendingFlightInsurance', pendingFlightInsurance);
+module.exports = mongoose.model('User', user);
