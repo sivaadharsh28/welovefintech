@@ -1,4 +1,4 @@
-const { testQueryFlight, fundContract, executeContract } = require("../controllers/testController");
+const { testQueryFlight, callFundContract, callExecuteContract } = require("../controllers/testController");
 const express = require("express");
 const router = express.Router();
 
@@ -6,8 +6,8 @@ const router = express.Router();
 
 router.post("/testQueryFlight", testQueryFlight);
 
-router.post("/fundContract", fundContract);
+router.post("/fundContract", callFundContract);
 
-router.post("/executeContract", executeContract);
+router.post("/executeContract", callExecuteContract);
 
 module.exports = router;

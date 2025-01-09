@@ -1,6 +1,10 @@
 const PendingFlightInsurance = require("../models/pendingFlightInsuranceModel");
 const User = require("../models/userModel");
 
+/*
+-------------------------- PendingFlightInsurances Collection --------------------------------
+*/
+
 //Saves data from fieldsJson as mongo document
 const savePendingFlightInsurance = async (fieldsJson) => {
     const flightInsurance = new PendingFlightInsurance(fieldsJson);
@@ -17,6 +21,10 @@ const getFlightsByArrival = async (arrivalDate) => {
 const deleteFlightInsurance = async (id) => {
     await PendingFlightInsurance.deleteOne({_id: id});
 }
+
+/*
+----------------------------------- Users Collection -----------------------------------
+*/
 
 // Users Collection
 const getUserById = async (id) => {
