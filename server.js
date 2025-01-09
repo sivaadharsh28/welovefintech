@@ -2,10 +2,9 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const mongoose = require("mongoose");
-const PendingFlightInsurance = require("./models/pendingFlightInsuranceModel");
 const schedule = require("node-schedule");
 const express = require("express");
-// const initCache = require("./misc/initCache");
+
 const app = express();
 const PORT = 300;
 const MONGO_URI = process.env.MONGO_URI;
@@ -14,11 +13,6 @@ const MONGO_URI = process.env.MONGO_URI;
 const flightInsuranceRoutes = require("./routes/flightInsurance");
 const testRoutes = require("./routes/test");
 
-//TODO
-//1. Create Oracle => Watch flight data api if possible
-//2. Create escrow 
-//3. Link Oracle and escrow via fulfilment value
-
 //middleware
 app.use(express.json({strict:false}));
 
@@ -26,15 +20,15 @@ app.use(express.json({strict:false}));
 app.use("/api/flightInsurance", flightInsuranceRoutes);
 app.use("/api/test", testRoutes);
 
-// run every 2 hours, poll mongo for changes, update local cache, 
-// search local cache for flights that are due to land, make payouts accordingly
+/*
+-------------------------- Server cache and Database watcher ------------------------------------------
+*/
+
+const PendingFlightInsurance = require("./models/pendingFlightInsuranceModel");
+const User = require("./misc/mongoose");
 let cache = new Map();
 
-//const job = schedule.scheduleJob("0 */2 * * *", () => {});
-
-/**
- * Creates a cache of flight insurances. Cache is a Map<DateString, Map<document_id, insurance>>
- */
+// Initializes the server cache. Cache is of type Map<DateString, Map<_id, Object>>
 async function initCache() {
     try {
         const res = await PendingFlightInsurance.find();
@@ -87,7 +81,6 @@ function startWatcher() {
             map.set(documentKey._id.toString(), fullDocument);
             cache.set(date, map);
         }
-        console.log(cache);
     })
 
     stream.on("error", (error) => {
@@ -95,10 +88,47 @@ function startWatcher() {
     })
 }
 
+/*
+----------------------------- Smart Contract Oracle ----------------------------------------
+*/
+const { executeSmartContract } = require("./controllers/flightInsuranceController");
+const { deleteFlightInsurance } = require("./misc/mongoose");
+
+/**
+ * Queries cache of insurances with flights landing today from the external flight API. 
+ * If any flights are cancelled/diverted/etc, calls the smart contract to payout to the user
+ */
+async function pollFlightAPI () {
+    const {getFlightData} = require("./misc/queryFlight");
+    //Retrieve flight insurances from cache for today
+    const today = new Date().toDateString();
+    const flightsToday = cache.get(today);
+    for (let [key, value] of flightsToday) {
+        // make external flight API call
+        let flightCode = value.flightCode;
+        let departureDate = value.departure.toISOString().slice(0,10);
+        const response = await getFlightData(flightCode, departureDate);
+        
+        const flightStatus = response.flight_status;
+        const userId = value.userId;
+        const {id, name, wallet, insuranceTier} = await User.getUserById(userId);
+        
+        if (flightStatus == "cancelled" || flightStatus == "incident" || flightStatus == "landed") {
+            executeSmartContract(insuranceTier, userWallet);
+        } else if (flightStatus == "landed") {
+            deleteFlightInsurance(key);
+        }
+        
+    }
+}
+// Poll flight API every 2 hours
+const job = schedule.scheduleJob("0 */2 * * *", () => pollFlightAPI());
+
+
 mongoose.connect(MONGO_URI, {dbName: "RippleShield"}).then(() => {
     app.listen(PORT, () => {
-        initCache();
-        startWatcher();
+        initCache()
+        .then(() => startWatcher());
         console.log(`Server listening on port ${PORT}`)
     });
 }).catch(error => console.log(error));

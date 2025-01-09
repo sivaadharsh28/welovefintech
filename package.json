@@ -9,11 +9,13 @@
   "author": "Ignatius Oey",
   "license": "ISC",
   "dependencies": {
+    "@axelar-network/axelar-gmp-sdk-solidity": "^6.0.4",
     "dotenv": "^16.4.7",
+    "ethers": "^6.13.5",
     "express": "^4.21.2",
-    "five-bells-condition": "^5.0.1",
     "mongoose": "^8.9.3",
     "node-schedule": "^2.1.1",
+    "web3": "^4.16.0",
     "xrpl": "^4.1.0"
   }
 }
