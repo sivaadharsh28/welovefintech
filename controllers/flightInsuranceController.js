@@ -1,6 +1,7 @@
 const xrpl = require("xrpl");
-const cc = require('five-bells-condition');
-const crypto = require('crypto');
+const ethers = require("ethers");
+const fs = require("fs");
+const AxelarExecutableWithToken = require("@axelar-network/axelar-gmp-sdk-solidity/interfaces/IAxelarExecutableWithToken.json");
 const { savePendingFlightInsurance, deleteFlightInsurance } = require("../misc/mongoose");
 
 const SEED = process.env.SEED;
@@ -16,8 +17,8 @@ const newFlightInsurance = async (req, res) => {
 
     flight = {
         code = 'SQ267',
-        departure = '2019-12-12T04:20:00+00:00'
-        arrival = '2019-12-12T04:20:00+00:00'
+        departure = '2019-12-12'
+        arrival = '2019-12-12'
         ...
         ...
     }
@@ -29,57 +30,16 @@ const newFlightInsurance = async (req, res) => {
     */
 
     try {
-        const preimageData = crypto.randomBytes(32);
-        const fulfillment = new cc.PreimageSha256();
-        fulfillment.setPreimage(preimageData);
-        const fulfillmentHex = fulfillment.serializeBinary().toString('hex').toUpperCase();
-        const conditionHex = fulfillment.getConditionBinary().toString('hex').toUpperCase();
-
-        // Connect ----------------------------------------------------------------
-        const client = new xrpl.Client('wss://s.altnet.rippletest.net:51233');
-        await client.connect();
-
-        // Prepare wallet to sign the transaction ---------------------------------
-        const wallet = await xrpl.Wallet.fromSeed(SEED);
-
-        // Set the escrow cancel time ---------------------------------------------
-        let cancelAfter = new Date(flight['arrival']); // Cancel 1 day after arrival
-        cancelAfter.setDate(cancelAfter.getDate() + 1);
-        let finishAfter = new Date(flight["arrival"]); // Only finish after scheduled arrival
-
-        const escrowCreateTransaction = {
-            "TransactionType": "EscrowCreate",
-            "Account": wallet.address,
-            "Destination": user["address"],
-            "Amount": "6000000", //drops XRP, equals 6XRP
-            "DestinationTag": 2023,
-            "Condition": conditionHex,
-            "Fee": "12",
-            "CancelAfter": xrpl.isoTimeToRippleTime(cancelAfter.toISOString()),
-            "FinishAfter": xrpl.isoTimeToRippleTime(finishAfter.toISOString())
-        };
-      
-        xrpl.validate(escrowCreateTransaction);
-      
-        // Sign and submit the transaction ----------------------------------------
-        const response  = await client.submitAndWait(escrowCreateTransaction, { wallet });
-        const offerSequence = response.result.tx_json.Sequence;
-        console.log(offerSequence);
-      
-        await client.disconnect();
-
         //Save claim to mongo
         const fieldsJson = {
+            "userID": user["userID"],
             "flightCode": flight["code"],
             "departure": flight["departure"],
             "arrival": flight["arrival"],
-            "offerSequence": offerSequence,
-            "condition": conditionHex,
-            "fulfillment": fulfillmentHex
         }
         await savePendingFlightInsurance(fieldsJson);
 
-        res.status(200).json(response);
+        res.status(200).json({message: "Insurance created succesfully"});
 
     } catch (e) {
         console.log(e);
@@ -88,43 +48,76 @@ const newFlightInsurance = async (req, res) => {
 
 }
 
-const makePayout = async (req, res) => {
+const executeSmartContract = async (req, res) => {
     const body = req.body;
-    const offerSequence = body["offerSequence"];
-    const condition = body["condition"];
-    const fulfillment = body["fulfillment"];
+    const RPC_URL =  "https://rpc-evm-sidechain.xrpl.org";
+    const CONTRACT_ADDRESS = "779194bC0Ff46977afEFE2F8291aFde32D182CC1";
+    const ABI = JSON.parse(fs.readFileSync("../misc/abi.json", "utf-8"));
+
+    const client = new xrpl.Client("wss://s.devnet.rippletest.net:51233");
+    await client.connect();
+    const wallet = xrpl.Wallet.fromSeed(process.env.SECRET);
+
+    // hard coded values for testing
+    const insuranceTier = 0;
+    const userWalletAddress = "r4jtkmSMabVLAGovzBY1qaT3uzhewG9ooX";
+    const encodedPayload = ethers.utils.defaultAbiCoder.encode(
+        ["uint8", "string"],
+        [insuranceTier, userWalletAddress]
+    );
+
+    const payloadHash = ethers.utils.keccak256(encodedPayload);
+
+    const xrpTransaction = {
+        TransactionType: "Payment",
+        Account: process.env.ADDRESS,
+        Amount: xrpl.xrpToDrops(10), //sending 10 xrp
+        Destination: "rP9iHnCmJcVPtzCwYJjU1fryC2pEcVqDHv", // Axelar Multisig address on XRPL
+        Memos: [
+            {
+                Memo: {
+                    MemoData: {
+                        MemoData: CONTRACT_ADDRESS, // Destination address (smart contract) without the 0x
+                        MemoType: "64657374696E6174696F6E5F61646472657373", // hex("destination_address")
+                    }
+                },
+                Memo: {
+                    MemoData: {
+                        MemoData: "7872706C2D65766D2D73696465636861696E", // hex("xrpl-evm-sidechain")
+                        MemoType: "64657374696E6174696F6E5F636861696E", // hex("destination_chain")
+                    }
+                },
+                Memo: {
+                    MemoData: {
+                        MemoData: payloadHash,
+                        MemoType: "7061796C6F61645F68617368", // hex("payload_hash")
+                    }
+                }
+            }
+        ]
+    }
+
+    const signed = wallet.sign(await client.autofill(xrpTransaction));
+    //Wait for contract call approval
+    const response = await client.submitAndWait(signed.tx_blob);
+    console.log("XRP transaction response: ", response);
+
+    //Handle smart contract call
+    const provider = ethers.providers.JsonRpcProvider(RPC_URL);
+    const evmWallet = new ethers.Wallet(process.env.EVM_WALLET_KEY, provider);
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, AxelarExecutableWithToken.abi, evmWallet);
+    contract.triggerPayout()
+
+
+    await client.disconnect();
+
 
     try {
-        // Connect ----------------------------------------------------------------
-        const client = new xrpl.Client('wss://s.altnet.rippletest.net:51233');
-        await client.connect();
-
-        // Prepare wallet to sign the transaction ---------------------------------
-        const wallet = await xrpl.Wallet.fromSeed(SEED);
-
-        const escrowFinishTransaction = {
-            "Account": wallet.address,
-            "TransactionType": "EscrowFinish",
-            "Owner": wallet.address,
-            "OfferSequence": offerSequence,
-            "Condition": condition,
-            "Fulfillment": fulfillment
-        }
-
-        xrpl.validate(escrowFinishTransaction);
-
-        // Sign and submit the transaction ----------------------------------------
-        const response  = await client.submitAndWait(escrowFinishTransaction, { wallet });
-        await client.disconnect();
-
-        // Delete corresponding document from MongoAtlas
-        await deleteFlightInsurance(condition);
-
-        res.status(200).json(response);
+        
     } catch (e) {
         console.log(e);
         res.status(400).json({error: e.message});
     }
 }
 
-module.exports = { newFlightInsurance, makePayout };
+module.exports = { newFlightInsurance, executeSmartContract };
