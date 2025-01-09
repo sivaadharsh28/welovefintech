@@ -1,10 +1,9 @@
-const xrpl = require("xrpl");
-const ethers = require("ethers");
 const fs = require("fs");
-const AxelarExecutableWithToken = require("@axelar-network/axelar-gmp-sdk-solidity/interfaces/IAxelarExecutableWithToken.json");
+const {Web3} = require("web3");
 const { savePendingFlightInsurance, deleteFlightInsurance } = require("../misc/mongoose");
 
-const SEED = process.env.SEED;
+const RPC_URL =  "https://rpc-evm-sidechain.xrpl.org";
+const CONTRACT_ADDRESS = "0x487d798dB8D860C6C48fc9bA17A2Ef701941f16d";
 
 //run when user requests new flight insurance
 const newFlightInsurance = async (req, res) => {
@@ -48,76 +47,39 @@ const newFlightInsurance = async (req, res) => {
 
 }
 
-const executeSmartContract = async (req, res) => {
-    const body = req.body;
-    const RPC_URL =  "https://rpc-evm-sidechain.xrpl.org";
-    const CONTRACT_ADDRESS = "779194bC0Ff46977afEFE2F8291aFde32D182CC1";
-    const ABI = JSON.parse(fs.readFileSync("../misc/abi.json", "utf-8"));
-
-    const client = new xrpl.Client("wss://s.devnet.rippletest.net:51233");
-    await client.connect();
-    const wallet = xrpl.Wallet.fromSeed(process.env.SECRET);
-
-    // hard coded values for testing
-    const insuranceTier = 0;
-    const userWalletAddress = "r4jtkmSMabVLAGovzBY1qaT3uzhewG9ooX";
-    const encodedPayload = ethers.utils.defaultAbiCoder.encode(
-        ["uint8", "string"],
-        [insuranceTier, userWalletAddress]
-    );
-
-    const payloadHash = ethers.utils.keccak256(encodedPayload);
-
-    const xrpTransaction = {
-        TransactionType: "Payment",
-        Account: process.env.ADDRESS,
-        Amount: xrpl.xrpToDrops(10), //sending 10 xrp
-        Destination: "rP9iHnCmJcVPtzCwYJjU1fryC2pEcVqDHv", // Axelar Multisig address on XRPL
-        Memos: [
-            {
-                Memo: {
-                    MemoData: {
-                        MemoData: CONTRACT_ADDRESS, // Destination address (smart contract) without the 0x
-                        MemoType: "64657374696E6174696F6E5F61646472657373", // hex("destination_address")
-                    }
-                },
-                Memo: {
-                    MemoData: {
-                        MemoData: "7872706C2D65766D2D73696465636861696E", // hex("xrpl-evm-sidechain")
-                        MemoType: "64657374696E6174696F6E5F636861696E", // hex("destination_chain")
-                    }
-                },
-                Memo: {
-                    MemoData: {
-                        MemoData: payloadHash,
-                        MemoType: "7061796C6F61645F68617368", // hex("payload_hash")
-                    }
-                }
-            }
-        ]
-    }
-
-    const signed = wallet.sign(await client.autofill(xrpTransaction));
-    //Wait for contract call approval
-    const response = await client.submitAndWait(signed.tx_blob);
-    console.log("XRP transaction response: ", response);
-
-    //Handle smart contract call
-    const provider = ethers.providers.JsonRpcProvider(RPC_URL);
-    const evmWallet = new ethers.Wallet(process.env.EVM_WALLET_KEY, provider);
-    const contract = new ethers.Contract(CONTRACT_ADDRESS, AxelarExecutableWithToken.abi, evmWallet);
-    contract.triggerPayout()
-
-
-    await client.disconnect();
-
-
+const fundSmartContract = async (amount) => {
     try {
+        const web3 = new Web3(RPC_URL);
+        const xrpAddress = "0xD4949664cD82660AaE99bEdc034a0deA8A0bd517";
+        const xrp_abi = JSON.parse(fs.readFileSync("./misc/xrp_abi.json"));
+        //const sender = web3.eth.accounts.privateKeyToAccount(process.env.COMPANY_WALLET_SECRET);
+        const sender = web3.eth.accounts.wallet.add(process.env.COMPANY_WALLET_SECRET)[0];
+
+        //Handle xrp spending approval
+        const xrpToken = new web3.eth.Contract(xrp_abi, xrpAddress);
+        const approval = await xrpToken.methods.approve(CONTRACT_ADDRESS, amount * 10 ** 18).send({from: sender.address});
+        console.log(approval);
         
+        const abi = JSON.parse(fs.readFileSync("./misc/abi.json"));
+        const contract = new web3.eth.Contract(abi, CONTRACT_ADDRESS);
+        const receipt = await contract.methods.depositXRP(amount * 10 ** 18).send({from: sender.address});
+        console.log(receipt);
     } catch (e) {
         console.log(e);
-        res.status(400).json({error: e.message});
     }
+    
 }
 
-module.exports = { newFlightInsurance, executeSmartContract };
+const executeSmartContract = async () => {
+    const tier = 0;
+    const customerWallet = "0xE2B3EaDC7DEE01763707e3E982329178C6cF18dD";
+    
+    const web3 = new Web3(RPC_URL);
+    const sender = web3.eth.accounts.wallet.add(process.env.COMPANY_WALLET_SECRET)[0];
+    const abi = JSON.parse(fs.readFileSync("./misc/abi.json"));
+    const contract = new web3.eth.Contract(abi, CONTRACT_ADDRESS);
+    const receipt = await contract.methods.initiatePayout(tier, customerWallet).send({from: sender.address});
+    console.log(receipt);
+}
+
+module.exports = { newFlightInsurance, executeSmartContract, fundSmartContract };

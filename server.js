@@ -95,6 +95,9 @@ function startWatcher() {
     })
 }
 
+const {executeSmartContract, fundSmartContract} = require("./controllers/flightInsuranceController");
+//executeSmartContract();
+//fundSmartContract();
 mongoose.connect(MONGO_URI, {dbName: "RippleShield"}).then(() => {
     app.listen(PORT, () => {
         initCache();
