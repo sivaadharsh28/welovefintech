@@ -113,7 +113,7 @@ async function pollFlightAPI () {
         const userId = value.userId;
         const {id, name, wallet, insuranceTier} = await User.getUserById(userId);
         
-        if (flightStatus == "cancelled" || flightStatus == "incident" || flightStatus == "landed") {
+        if (flightStatus == "cancelled" || flightStatus == "incident" || flightStatus == "diverted") {
             executeSmartContract(insuranceTier, userWallet);
         } else if (flightStatus == "landed") {
             deleteFlightInsurance(key);
