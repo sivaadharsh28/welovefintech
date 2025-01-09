@@ -3,7 +3,7 @@ const Schema = mongoose.Schema;
 
 const pendingFlightInsurance = new Schema({
     userID: {
-        type: String,
+        type: ObjectId,
         required: true
     },
     flightCode: {
